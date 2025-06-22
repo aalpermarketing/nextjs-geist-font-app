@@ -1,0 +1,578 @@
+<?php
+require_once 'db.php';
+
+// Vitrinleri kategorilerine göre çek
+$stmt = $pdo->prepare("SELECT * FROM vitrinler WHERE kategori = ? ORDER BY sira ASC");
+
+// VIP vitrinleri çek
+$stmt->execute(['vip']);
+$vip_vitrinler = $stmt->fetchAll();
+
+// Gold vitrinleri çek
+$stmt->execute(['gold']);
+$gold_vitrinler = $stmt->fetchAll();
+
+// Silver vitrinleri çek
+$stmt->execute(['silver']);
+$silver_vitrinler = $stmt->fetchAll();
+
+// Aktif popupları çek
+$popup_stmt = $pdo->query("SELECT * FROM popup WHERE aktif = 1 ORDER BY id DESC");
+$popuplar = $popup_stmt->fetchAll();
+?>
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bahis Vitrini</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #1a237e;
+            --secondary-color: #00796b;
+            --accent-color: #ffd700;
+            --dark-gray: #333;
+            --light-gray: #f5f5f5;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--dark-gray);
+            color: white;
+            margin: 0;
+            padding: 0;
+        }
+        .vitrin-container {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+        }
+
+        .vitrin-baslik {
+            color: var(--accent-color);
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .vitrin-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: transform 0.3s ease;
+        }
+
+        .vitrin-item:hover {
+            transform: translateY(-5px);
+        }
+
+        .bonus-baslik {
+            color: var(--accent-color);
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 10px 0;
+        }
+
+        .bonus-aciklama {
+            color: white;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+
+        .bonus-button {
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 5px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            animation: pulse 2s infinite;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .bonus-button:hover {
+            background: var(--accent-color);
+            color: var(--dark-gray);
+            transform: scale(1.05);
+        }
+
+        /* VIP Vitrin Stili */
+        .vip-vitrin .vitrin-item {
+            background: linear-gradient(45deg, #1a237e, #0d47a1);
+            border: 2px solid var(--accent-color);
+        }
+
+        /* Gold Vitrin Stili */
+        .gold-vitrin .vitrin-item {
+            background: linear-gradient(45deg, #795548, #5d4037);
+        }
+
+        /* Silver Vitrin Stili */
+        .silver-vitrin .vitrin-item {
+            background: linear-gradient(45deg, #455a64, #37474f);
+        }
+
+        /* Popup Stili */
+        .popup-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+        }
+
+        .popup-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 1001;
+        }
+
+        .popup-container.buyuk {
+            width: 300px;
+            height: 300px;
+        }
+
+        .popup-container.kucuk {
+            width: 200px;
+            height: 200px;
+        }
+
+        .popup-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 20px;
+            color: var(--dark-gray);
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(0, 121, 107, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(0, 121, 107, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(0, 121, 107, 0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .vitrin-item {
+                margin-bottom: 20px;
+            }
+            
+            .popup-container.buyuk,
+            .popup-container.kucuk {
+                width: 90%;
+                height: auto;
+                max-height: 90vh;
+            }
+        }
+
+        .site-logo {
+            max-width: 200px;
+            height: auto;
+            margin: 20px auto;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="logo.png" alt="Bahis Vitrini" class="site-logo">
+    </div>
+
+    <!-- VIP Vitrin -->
+    <div class="container vitrin-container vip-vitrin">
+        <h2 class="vitrin-baslik">VIP Bonuslar</h2>
+        <div class="row">
+            <?php foreach ($vip_vitrinler as $vitrin): ?>
+                <div class="col-md-4">
+                    <div class="vitrin-item">
+                        <img src="<?= htmlspecialchars($vitrin['resim_linki']) ?>" alt="Bonus" class="img-fluid" style="width: 100%; height: auto; margin-bottom: 10px;">
+                        <h3 class="bonus-baslik"><?= htmlspecialchars($vitrin['bonus_baslik']) ?></h3>
+                        <p class="bonus-aciklama"><?= htmlspecialchars($vitrin['bonus_aciklama']) ?></p>
+                        <a href="<?= htmlspecialchars($vitrin['bonus_link']) ?>" class="bonus-button" target="_blank">BONUS AL</a>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <!-- Gold Vitrin -->
+    <div class="container vitrin-container gold-vitrin">
+        <h2 class="vitrin-baslik">Gold Bonuslar</h2>
+        <div class="row">
+            <?php foreach ($gold_vitrinler as $vitrin): ?>
+                <div class="col-md-4">
+                    <div class="vitrin-item">
+                        <img src="<?= htmlspecialchars($vitrin['resim_linki']) ?>" alt="Bonus" class="img-fluid" style="width: 100%; height: auto; margin-bottom: 10px;">
+                        <h3 class="bonus-baslik"><?= htmlspecialchars($vitrin['bonus_baslik']) ?></h3>
+                        <p class="bonus-aciklama"><?= htmlspecialchars($vitrin['bonus_aciklama']) ?></p>
+                        <a href="<?= htmlspecialchars($vitrin['bonus_link']) ?>" class="bonus-button" target="_blank">BONUS AL</a>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <!-- Silver Vitrin -->
+    <div class="container vitrin-container silver-vitrin">
+        <h2 class="vitrin-baslik">Silver Bonuslar</h2>
+        <div class="row">
+            <?php foreach ($silver_vitrinler as $vitrin): ?>
+                <div class="col-md-4">
+                    <div class="vitrin-item">
+                        <img src="<?= htmlspecialchars($vitrin['resim_linki']) ?>" alt="Bonus" class="img-fluid" style="width: 100%; height: auto; margin-bottom: 10px;">
+                        <h3 class="bonus-baslik"><?= htmlspecialchars($vitrin['bonus_baslik']) ?></h3>
+                        <p class="bonus-aciklama"><?= htmlspecialchars($vitrin['bonus_aciklama']) ?></p>
+                        <a href="<?= htmlspecialchars($vitrin['bonus_link']) ?>" class="bonus-button" target="_blank">BONUS AL</a>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <!-- Popuplar -->
+    <?php foreach ($popuplar as $popup): ?>
+        <div class="popup-overlay">
+            <div class="popup-container <?= $popup['boyut'] ?>">
+                <span class="popup-close">&times;</span>
+                <img src="<?= htmlspecialchars($popup['resim_linki']) ?>" alt="Popup" class="img-fluid">
+                <div class="popup-content">
+                    <p><?= htmlspecialchars($popup['bonus_detay']) ?></p>
+                    <a href="<?= htmlspecialchars($popup['bonus_linki']) ?>" class="bonus-button" target="_blank">BONUS AL</a>
+                </div>
+            </div>
+        </div>
+    <?php endforeach; ?>
+
+    <footer class="container text-center py-3">
+        <p>&copy; 2024 Bahis Vitrini - Tüm hakları saklıdır.</p>
+    </footer>
+</body>
+</html>");
+}
+
+// Mobil kullanıcılar için içerik
+else {
+    echo "";
+}
+?>
+
+<?php
+require_once 'db.php';
+
+// Vitrinleri kategorilerine göre çek
+$stmt = $pdo->prepare("SELECT * FROM vitrinler WHERE kategori = ? ORDER BY sira ASC");
+
+// VIP vitrinleri çek
+$stmt->execute(['vip']);
+$vip_vitrinler = $stmt->fetchAll();
+
+// Gold vitrinleri çek
+$stmt->execute(['gold']);
+$gold_vitrinler = $stmt->fetchAll();
+
+// Silver vitrinleri çek
+$stmt->execute(['silver']);
+$silver_vitrinler = $stmt->fetchAll();
+
+// Aktif popupları çek
+$popup_stmt = $pdo->query("SELECT * FROM popup WHERE aktif = 1 ORDER BY id DESC");
+$popuplar = $popup_stmt->fetchAll();
+
+?>
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bahis Vitrini</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #1a237e;
+            --secondary-color: #00796b;
+            --accent-color: #ffd700;
+            --dark-gray: #333;
+            --light-gray: #f5f5f5;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--dark-gray);
+            color: white;
+            margin: 0;
+            padding: 0;
+        }
+
+        .vitrin-container {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+        }
+
+        .vitrin-baslik {
+            color: var(--accent-color);
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .vitrin-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: transform 0.3s ease;
+        }
+
+        .vitrin-item:hover {
+            transform: translateY(-5px);
+        }
+
+        .bonus-baslik {
+            color: var(--accent-color);
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 10px 0;
+        }
+
+        .bonus-aciklama {
+            color: white;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+
+        .bonus-button {
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 5px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            animation: pulse 2s infinite;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .bonus-button:hover {
+            background: var(--accent-color);
+            color: var(--dark-gray);
+            transform: scale(1.05);
+        }
+
+        /* VIP Vitrin Stili */
+        .vip-vitrin .vitrin-item {
+            background: linear-gradient(45deg, #1a237e, #0d47a1);
+            border: 2px solid var(--accent-color);
+        }
+
+        /* Gold Vitrin Stili */
+        .gold-vitrin .vitrin-item {
+            background: linear-gradient(45deg, #795548, #5d4037);
+        }
+
+        /* Silver Vitrin Stili */
+        .silver-vitrin .vitrin-item {
+            background: linear-gradient(45deg, #455a64, #37474f);
+        }
+
+        /* Popup Stili */
+        .popup-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+        }
+
+        .popup-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 1001;
+        }
+
+        .popup-container.buyuk {
+            width: 300px;
+            height: 300px;
+        }
+
+        .popup-container.kucuk {
+            width: 200px;
+            height: 200px;
+        }
+
+        .popup-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 20px;
+            color: var(--dark-gray);
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(0, 121, 107, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(0, 121, 107, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(0, 121, 107, 0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .vitrin-item {
+                margin-bottom: 20px;
+            }
+            
+            .popup-container.buyuk,
+            .popup-container.kucuk {
+                width: 90%;
+                height: auto;
+                max-height: 90vh;
+            }
+        }
+
+        .site-logo {
+            max-width: 200px;
+            height: auto;
+            margin: 20px auto;
+            display: block;
+        }
+
+    </style>
+	
+</head>
+    <div class="container">
+        <img src="logo.png" alt="Bahis Vitrini" class="site-logo">
+    </div>
+
+    <!-- VIP Vitrin -->
+    <div class="container vitrin-container vip-vitrin">
+        <h2 class="vitrin-baslik">VIP Bonuslar</h2>
+        <div class="row">
+            <?php foreach ($vip_vitrinler as $vitrin): ?>
+                <div class="col-md-4">
+                    <div class="vitrin-item">
+                        <img src="<?= htmlspecialchars($vitrin['resim_linki']) ?>" alt="Bonus" class="img-fluid" style="width: 100%; height: auto; margin-bottom: 10px;">
+                        <h3 class="bonus-baslik"><?= htmlspecialchars($vitrin['bonus_baslik']) ?></h3>
+                        <p class="bonus-aciklama"><?= htmlspecialchars($vitrin['bonus_aciklama']) ?></p>
+                        <a href="<?= htmlspecialchars($vitrin['bonus_link']) ?>" class="bonus-button" target="_blank">BONUS AL</a>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <!-- Gold Vitrin -->
+    <div class="container vitrin-container gold-vitrin">
+        <h2 class="vitrin-baslik">Gold Bonuslar</h2>
+        <div class="row">
+            <?php foreach ($gold_vitrinler as $vitrin): ?>
+                <div class="col-md-4">
+                    <div class="vitrin-item">
+                        <img src="<?= htmlspecialchars($vitrin['resim_linki']) ?>" alt="Bonus" class="img-fluid" style="width: 100%; height: auto; margin-bottom: 10px;">
+                        <h3 class="bonus-baslik"><?= htmlspecialchars($vitrin['bonus_baslik']) ?></h3>
+                        <p class="bonus-aciklama"><?= htmlspecialchars($vitrin['bonus_aciklama']) ?></p>
+                        <a href="<?= htmlspecialchars($vitrin['bonus_link']) ?>" class="bonus-button" target="_blank">BONUS AL</a>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <!-- Silver Vitrin -->
+    <div class="container vitrin-container silver-vitrin">
+        <h2 class="vitrin-baslik">Silver Bonuslar</h2>
+        <div class="row">
+            <?php foreach ($silver_vitrinler as $vitrin): ?>
+                <div class="col-md-4">
+                    <div class="vitrin-item">
+                        <img src="<?= htmlspecialchars($vitrin['resim_linki']) ?>" alt="Bonus" class="img-fluid" style="width: 100%; height: auto; margin-bottom: 10px;">
+                        <h3 class="bonus-baslik"><?= htmlspecialchars($vitrin['bonus_baslik']) ?></h3>
+                        <p class="bonus-aciklama"><?= htmlspecialchars($vitrin['bonus_aciklama']) ?></p>
+                        <a href="<?= htmlspecialchars($vitrin['bonus_link']) ?>" class="bonus-button" target="_blank">BONUS AL</a>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <!-- Popuplar -->
+    <?php foreach ($popuplar as $popup): ?>
+        <div class="popup-overlay">
+            <div class="popup-container <?= $popup['boyut'] ?>">
+                <span class="popup-close">&times;</span>
+                <img src="<?= htmlspecialchars($popup['resim_linki']) ?>" alt="Popup" class="img-fluid">
+                <div class="popup-content">
+                    <p><?= htmlspecialchars($popup['bonus_detay']) ?></p>
+                    <a href="<?= htmlspecialchars($popup['bonus_linki']) ?>" class="bonus-button" target="_blank">BONUS AL</a>
+                </div>
+            </div>
+        </div>
+    <?php endforeach; ?>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Popup işlemleri
+        document.addEventListener('DOMContentLoaded', function() {
+            const popups = document.querySelectorAll('.popup-overlay');
+            const closeButtons = document.querySelectorAll('.popup-close');
+
+            // Popupları sırayla göster
+            popups.forEach((popup, index) => {
+                setTimeout(() => {
+                    popup.style.display = 'block';
+                }, index * 1000); // Her popup 1 saniye arayla gösterilir
+            });
+
+            // Kapatma düğmesi işlemleri
+            closeButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    this.closest('.popup-overlay').style.display = 'none';
+                });
+            });
+        });
+    </script>
+
+    <footer class="container text-center py-3">
+        <p>&copy; 2024 Bahis Vitrini - Tüm hakları saklıdır.</p>
+    </footer>
+</body>
+</html>
